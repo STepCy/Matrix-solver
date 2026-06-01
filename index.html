@@ -1,0 +1,1548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>👾 Matrix Calculator 👾</title>
+    <meta name="description" content="Advanced Matrix Calculator with 12 operations: Cramer's Rule, Determinant, Inverse, Transpose, Multiplication, Eigenvalues, Rank, Trace, Adjugate, RREF, LU Decomposition.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.js"></script>
+    <style>
+        /* ══════════════ 1. Variables ══════════════ */
+        :root {
+            --font-ui: 'Inter', system-ui, -apple-system, sans-serif;
+            --font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+            --bg-deep: #07071a;
+            --bg-card: rgba(255,255,255,0.06);
+            --bg-card-hover: rgba(255,255,255,0.10);
+            --border-subtle: rgba(255,255,255,0.08);
+            --border-medium: rgba(255,255,255,0.15);
+            --text-primary: #f0f0f5;
+            --text-secondary: rgba(255,255,255,0.55);
+            --text-muted: rgba(255,255,255,0.35);
+            --accent: #43a047;
+            --accent-dim: rgba(67,160,71,0.2);
+            --sidebar-w: 250px;
+            --input-bg: rgba(255,255,255,0.9);
+            --danger: #e53935;
+            --warning-bg: rgba(251,140,0,0.12);
+            --warning-text: #ffcc80;
+            --error-bg: rgba(229,57,53,0.12);
+            --error-text: #ff8a80;
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --radius-xl: 20px;
+            --shadow-lg: 0 20px 60px rgba(0,0,0,0.4);
+            --matrix-col-w: 72px;
+            --matrix-input-h: 46px;
+        }
+
+        /* ══════════════ 2. Reset & Base ══════════════ */
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: var(--font-ui);
+            background: var(--bg-deep);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* ══════════════ 3. Background Orbs ══════════════ */
+        .bg-orb {
+            position: fixed; border-radius: 50%; pointer-events: none;
+            filter: blur(100px); opacity: 0.25; z-index: 0;
+        }
+        .orb-1 { width: 500px; height: 500px; background: #6a11cb; top: -150px; left: -120px; animation: orbFloat1 22s ease-in-out infinite; }
+        .orb-2 { width: 400px; height: 400px; background: #2575fc; bottom: -100px; right: -80px; animation: orbFloat2 28s ease-in-out infinite; }
+        .orb-3 { width: 300px; height: 300px; background: #e040fb; top: 40%; left: 55%; animation: orbFloat3 18s ease-in-out infinite; }
+        @keyframes orbFloat1 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(60px,80px)} }
+        @keyframes orbFloat2 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(-70px,-60px)} }
+        @keyframes orbFloat3 { 0%,100%{transform:translate(0,0)} 33%{transform:translate(-50px,40px)} 66%{transform:translate(40px,-30px)} }
+
+        /* ══════════════ 4. Sidebar ══════════════ */
+        .sidebar {
+            position: fixed; left: 0; top: 0; bottom: 0;
+            width: var(--sidebar-w);
+            background: rgba(10,10,30,0.92);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border-right: 1px solid var(--border-subtle);
+            z-index: 100;
+            display: flex; flex-direction: column;
+            transition: transform 0.35s cubic-bezier(0.4,0,0.2,1);
+        }
+        .sidebar-brand {
+            padding: 22px 20px; display: flex; align-items: center; gap: 10px;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+        .sidebar-brand .brand-icon { font-size: 1.6rem; }
+        .sidebar-brand .brand-text { font-size: 1.15rem; font-weight: 800; letter-spacing: -0.03em; background: linear-gradient(135deg,#a78bfa,#60a5fa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .sidebar-ops { padding: 10px 8px; flex: 1; overflow-y: auto; }
+        .sidebar-ops::-webkit-scrollbar { width: 4px; }
+        .sidebar-ops::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+
+        .op-item {
+            display: flex; align-items: center; gap: 11px; width: 100%;
+            padding: 10px 14px; border: none; border-radius: var(--radius-sm);
+            background: transparent; color: var(--text-secondary);
+            font-family: var(--font-ui); font-size: 0.85rem; font-weight: 500;
+            cursor: pointer; transition: all 0.2s; text-align: left; margin-bottom: 2px;
+        }
+        .op-item:hover { background: rgba(255,255,255,0.06); color: var(--text-primary); }
+        .op-item.active { background: var(--accent-dim); color: #fff; font-weight: 600; }
+        .op-icon {
+            width: 30px; height: 30px; border-radius: 7px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.85rem; font-weight: 700; flex-shrink: 0;
+            font-family: var(--font-mono);
+        }
+        .op-desc { font-size: 0.7rem; color: var(--text-muted); margin-left: auto; font-family: var(--font-mono); }
+
+        /* ══════════════ 5. Sidebar Overlay ══════════════ */
+        .sidebar-overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.5); z-index: 99;
+            backdrop-filter: blur(4px);
+            transition: opacity 0.3s;
+        }
+        .sidebar-overlay.active { display: block; }
+
+        /* ══════════════ 6. Main Content ══════════════ */
+        .main-content {
+            margin-left: var(--sidebar-w);
+            padding: 28px 32px;
+            min-height: 100vh;
+            position: relative; z-index: 1;
+            transition: margin-left 0.35s;
+        }
+        .content-container {
+            max-width: 1600px;
+            width: 100%;
+        }
+
+        /* ══════════════ 7. Top Bar ══════════════ */
+        .top-bar {
+            display: flex; align-items: center; gap: 16px;
+            margin-bottom: 24px;
+        }
+        .hamburger {
+            display: none; width: 40px; height: 40px;
+            border: 1px solid var(--border-medium); border-radius: var(--radius-sm);
+            background: var(--bg-card); color: #fff; font-size: 1.3rem;
+            cursor: pointer; align-items: center; justify-content: center;
+            transition: background 0.2s;
+            font-family: var(--font-ui);
+        }
+        .hamburger:hover { background: var(--bg-card-hover); }
+        .op-title {
+            font-size: 1.7rem; font-weight: 800; letter-spacing: -0.03em;
+        }
+        .op-title-accent { color: var(--accent); }
+        .op-title-sub { font-size: 0.85rem; font-weight: 400; color: var(--text-secondary); margin-left: 12px; font-family: var(--font-mono); }
+
+        /* ══════════════ 8. Theory Card ══════════════ */
+        .theory-card {
+            background: linear-gradient(90deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%);
+            border: 1px solid var(--border-subtle);
+            border-left: 4px solid var(--accent);
+            border-radius: var(--radius-md);
+            padding: 16px 20px;
+            margin-bottom: 24px;
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .theory-card b { color: var(--accent); font-weight: 600; }
+
+        /* ══════════════ 9. Input Area ══════════════ */
+        .input-area {
+            background: var(--bg-card); border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-lg); padding: 32px;
+            box-shadow: var(--shadow-lg); margin-bottom: 24px;
+        }
+
+        /* ══════════════ 10. Size Controls ══════════════ */
+        .size-controls {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-bottom: 24px;
+            background: rgba(255,255,255,0.02);
+            border: 1px solid var(--border-subtle);
+            padding: 16px 20px;
+            border-radius: var(--radius-md);
+            align-items: center;
+        }
+        .size-controls-title {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-right: 12px;
+            display: flex;
+            align-items: center;
+            font-family: var(--font-ui);
+        }
+        .size-group { display: flex; flex-direction: column; gap: 5px; }
+        .size-group.hidden { display: none; }
+        .size-group label {
+            font-size: 0.75rem; font-weight: 600; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: 0.06em;
+        }
+        .size-group select {
+            padding: 9px 14px; border: 1.5px solid var(--border-medium);
+            border-radius: var(--radius-sm); font-size: 0.95rem;
+            font-family: var(--font-mono); background: rgba(255,255,255,0.06);
+            color: #fff; cursor: pointer; min-width: 90px;
+            transition: border-color 0.2s;
+        }
+        .size-group select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
+        .size-group select option { background: #1a1a2e; color: #fff; }
+
+        /* ══════════════ 11. Matrix Grids ══════════════ */
+        .matrices-row {
+            display: flex;
+            gap: 24px;
+            flex-wrap: wrap;
+            align-items: stretch;
+            justify-content: flex-start;
+            width: 100%;
+        }
+        .matrix-panel {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            padding: 20px;
+            flex: 1 1 320px;
+            max-width: 100%;
+            min-width: 280px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+        .matrix-panel:hover {
+            border-color: rgba(255,255,255,0.15);
+            box-shadow: 0 8px 30px rgba(0,0,0,0.25);
+        }
+        .matrix-panel.vector-panel {
+            flex: 0 1 200px;
+            min-width: 150px;
+        }
+        .matrix-panel.hidden { display: none; }
+        
+        .matrix-panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-subtle);
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .matrix-panel-label {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .matrix-actions {
+            display: flex;
+            gap: 6px;
+        }
+        .panel-act-btn {
+            background: rgba(255,255,255,0.06);
+            border: 1px solid var(--border-subtle);
+            color: var(--text-secondary);
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: var(--font-ui);
+        }
+        .panel-act-btn:hover {
+            background: rgba(255,255,255,0.15);
+            color: #fff;
+            border-color: var(--border-medium);
+        }
+        .panel-act-btn:active {
+            transform: scale(0.95);
+        }
+
+        .matrix-grid {
+            display: grid;
+            gap: 8px;
+            overflow: auto;
+            padding: 10px;
+            max-height: 400px;
+            justify-content: start;
+            align-content: start;
+            flex-grow: 1;
+        }
+        .matrix-grid::-webkit-scrollbar { width: 5px; height: 5px; }
+        .matrix-grid::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 4px; }
+        .matrix-input {
+            width: 100%;
+            height: var(--matrix-input-h);
+            text-align: center;
+            font-size: 0.95rem; font-family: var(--font-mono); font-weight: 500;
+            border-radius: 8px; border: 1.5px solid var(--border-medium);
+            background: var(--input-bg); color: #222;
+            transition: all 0.2s ease;
+        }
+        .matrix-input:focus {
+            outline: none; border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-dim); transform: scale(1.06);
+        }
+        .matrix-input.input-error {
+            border-color: var(--danger);
+            box-shadow: 0 0 0 3px rgba(229,57,53,0.2);
+            animation: shake 0.35s ease;
+        }
+        @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-3px)} 75%{transform:translateX(3px)} }
+
+        /* ══════════════ 12. Buttons ══════════════ */
+        .btn-row { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
+        .btn {
+            padding: 12px 24px; border: none; border-radius: var(--radius-md);
+            font-family: var(--font-ui); font-size: 0.9rem; font-weight: 600;
+            color: #fff; cursor: pointer; transition: all 0.25s; position: relative;
+            overflow: hidden; letter-spacing: 0.01em; display: inline-flex;
+            align-items: center; justify-content: center; gap: 8px;
+            min-width: 140px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .btn::after {
+            content:''; position:absolute; inset:0;
+            background:linear-gradient(180deg,rgba(255,255,255,0.12) 0%,transparent 100%);
+            pointer-events:none;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+            filter: brightness(1.1);
+        }
+        .btn:active { transform: scale(0.96); }
+        .btn-compute { background: var(--accent); }
+        .btn-compute:hover { box-shadow: 0 6px 20px var(--accent-dim); }
+        .btn-reset { background: var(--danger); }
+        .btn-reset:hover { box-shadow: 0 6px 20px rgba(229,57,53,0.3); }
+        .btn-copy { background: #00acc1; display: none; }
+        .btn-fraction { background: #fb8c00; display: none; }
+
+        /* ══════════════ 13. Notification ══════════════ */
+        .notification {
+            padding: 12px 16px; border-radius: var(--radius-sm);
+            font-size: 0.88rem; font-weight: 500; text-align: center;
+            margin-bottom: 16px; display: none;
+            animation: fadeSlideIn 0.3s ease;
+        }
+        .notification.error { background: var(--error-bg); color: var(--error-text); border: 1px solid rgba(229,57,53,0.3); }
+        .notification.warning { background: var(--warning-bg); color: var(--warning-text); border: 1px solid rgba(251,140,0,0.3); }
+        .notification.success { background: rgba(67,160,71,0.12); color: #a5d6a7; border: 1px solid rgba(67,160,71,0.3); }
+
+        /* ══════════════ 14. Result Area ══════════════ */
+        .result-area {
+            display: none; background: rgba(255,255,255,0.03);
+            border: 1px solid var(--border-subtle); border-radius: var(--radius-lg);
+            padding: 32px; animation: fadeSlideIn 0.45s ease;
+            box-shadow: var(--shadow-lg);
+            margin-top: 24px;
+        }
+        @keyframes fadeSlideIn { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
+        .result-title {
+            font-size: 1.15rem; font-weight: 700; color: var(--accent);
+            margin-bottom: 18px; display: flex; align-items: center; gap: 8px;
+        }
+        .result-body { font-family: var(--font-mono); font-size: 0.9rem; line-height: 1.7; }
+        .result-body .highlight { color: var(--accent); font-weight: 600; }
+        .result-body .formula-line { margin-bottom: 6px; }
+        .result-divider { border: none; border-top: 1px solid var(--border-subtle); margin: 16px 0; }
+        .result-section-title { font-size: 0.8rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px; margin-top: 16px; }
+        .result-var-block { border-left: 3px solid var(--accent); padding-left: 14px; margin-bottom: 14px; }
+        .result-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 16px;
+            margin-top: 16px;
+            margin-bottom: 20px;
+        }
+        .step-item { background: rgba(255,255,255,0.04); border-radius: 6px; padding: 8px 12px; margin-bottom: 6px; font-size: 0.82rem; }
+        .step-op { color: var(--accent); font-weight: 600; margin-bottom: 4px; }
+
+        /* ══════════════ 15. Result Matrix Brackets ══════════════ */
+        .result-matrix-wrap { display: inline-flex; align-items: center; gap: 12px; margin: 8px 0; flex-wrap: wrap; }
+        .result-matrix-label { font-weight: 700; color: var(--accent); font-size: 1.1rem; min-width: 35px; font-family: var(--font-mono); }
+        .result-matrix {
+            display: inline-block; position: relative;
+            padding: 8px 18px; margin: 6px 0;
+            border-left: 3px solid var(--accent);
+            border-right: 3px solid var(--accent);
+            background: rgba(255,255,255,0.01);
+            border-radius: 4px;
+        }
+        .result-matrix::before, .result-matrix::after {
+            content:''; position:absolute; width: 10px; top: 0; bottom: 0;
+            border-top: 3px solid var(--accent); border-bottom: 3px solid var(--accent);
+        }
+        .result-matrix::before { left: -1px; border-left: 0; }
+        .result-matrix::after { right: -1px; border-right: 0; }
+        .result-matrix table { border-collapse: collapse; }
+        .result-matrix td {
+            padding: 6px 12px; text-align: right; font-family: var(--font-mono);
+            font-size: 0.95rem; white-space: nowrap; color: var(--text-primary);
+        }
+        .result-matrix td.diag-highlight { color: var(--accent); font-weight: 700; }
+        .result-matrix td.diag-highlight { color: var(--accent); font-weight: 700; }
+
+        /* ══════════════ 16. Fireworks ══════════════ */
+        .firework {
+            position: fixed; width: 8px; height: 8px; border-radius: 50%;
+            pointer-events: none; z-index: 9999;
+            animation: fwBurst 2.2s ease-out forwards;
+        }
+        @keyframes fwBurst { 0%{transform:scale(0.5);opacity:1} 40%{transform:scale(3);opacity:0.7} 100%{transform:scale(0);opacity:0} }
+
+        /* ══════════════ 17. Bottom Tabs (Mobile) ══════════════ */
+        .bottom-tabs {
+            display: none; position: fixed; bottom: 0; left: 0; right: 0;
+            background: rgba(10,10,30,0.95); backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-top: 1px solid var(--border-subtle);
+            z-index: 100; overflow-x: auto; white-space: nowrap;
+            padding: 6px 8px; -webkit-overflow-scrolling: touch;
+        }
+        .bottom-tabs::-webkit-scrollbar { display: none; }
+        .btab {
+            display: inline-flex; flex-direction: column; align-items: center;
+            gap: 2px; padding: 6px 12px; border: none; border-radius: 8px;
+            background: transparent; color: var(--text-muted);
+            font-family: var(--font-ui); font-size: 0.65rem; font-weight: 500;
+            cursor: pointer; transition: all 0.2s; min-width: 56px;
+        }
+        .btab:hover { color: var(--text-secondary); }
+        .btab.active { color: var(--accent); background: var(--accent-dim); }
+        .btab-icon { font-size: 1.1rem; font-family: var(--font-mono); font-weight: 700; }
+
+        /* ══════════════ 18. Focus ══════════════ */
+        *:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+        /* ══════════════ 19. Responsive: Tablet ══════════════ */
+        @media (max-width: 1024px) {
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.open { transform: translateX(0); }
+            .main-content { margin-left: 0; }
+            .hamburger { display: flex; }
+        }
+
+        /* ══════════════ 20. Responsive: Mobile ══════════════ */
+        @media (max-width: 768px) {
+            :root {
+                --matrix-col-w: 50px;
+                --matrix-input-h: 38px;
+            }
+            .sidebar { display: none; }
+            .sidebar-overlay { display: none !important; }
+            .hamburger { display: none; }
+            .bottom-tabs { display: flex; }
+            .main-content { margin-left: 0; padding: 20px 16px 80px; }
+            .op-title { font-size: 1.3rem; }
+            .op-title-sub { display: none; }
+            .input-area { padding: 20px 16px; }
+            .matrix-input { font-size: 0.8rem; }
+            .matrices-row { flex-direction: column; gap: 16px; }
+            .btn-row { flex-direction: column; }
+            .btn { width: 100%; justify-content: center; }
+            .result-matrix td { padding: 3px 6px; font-size: 0.78rem; }
+            .dashboard-help { grid-template-columns: 1fr; }
+        }
+
+        /* ══════════════ 21. Responsive: Small ══════════════ */
+        @media (max-width: 480px) {
+            :root {
+                --matrix-col-w: 44px;
+                --matrix-input-h: 34px;
+            }
+            .main-content { padding: 14px 10px 80px; }
+            .op-title { font-size: 1.15rem; }
+            .matrix-input { font-size: 0.75rem; }
+            .input-area { padding: 16px 12px; border-radius: var(--radius-md); }
+            .theory-card { font-size: 0.8rem; padding: 10px 14px; }
+        }
+
+        /* ══════════════ 22. Dashboard Help ══════════════ */
+        .dashboard-help {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 20px;
+            margin-top: 24px;
+            animation: fadeSlideIn 0.5s ease;
+        }
+        .help-section {
+            background: rgba(255,255,255,0.02);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            transition: all 0.3s;
+        }
+        .help-section:hover {
+            background: rgba(255,255,255,0.04);
+            border-color: rgba(255,255,255,0.12);
+            transform: translateY(-2px);
+        }
+        .help-title {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: var(--accent);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid var(--border-subtle);
+            padding-bottom: 10px;
+        }
+        .help-list {
+            list-style: none;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .help-list li {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+            position: relative;
+            padding-left: 4px;
+        }
+        .help-list li b {
+            color: var(--text-primary);
+        }
+        .help-list kbd {
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.25);
+            border-radius: 4px;
+            padding: 1px 5px;
+            font-size: 0.75rem;
+            font-family: var(--font-mono);
+            color: #fff;
+            box-shadow: 0 1px 0 rgba(0,0,0,0.2);
+        }
+        .help-text {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+        .app-list {
+            margin-top: 10px;
+            padding-left: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .app-list li {
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+        }
+        .app-list li b {
+            color: var(--accent);
+        }
+    </style>
+</head>
+<body>
+    <!-- Background -->
+    <div class="bg-orb orb-1"></div>
+    <div class="bg-orb orb-2"></div>
+    <div class="bg-orb orb-3"></div>
+
+    <!-- Sidebar Overlay -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <!-- Sidebar -->
+    <nav class="sidebar" id="sidebar" aria-label="Operation navigation">
+        <div class="sidebar-brand">
+            <span class="brand-icon">👾</span>
+            <span class="brand-text">Matrix Calc</span>
+        </div>
+        <div class="sidebar-ops" id="sidebarOps"></div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content" id="mainContent">
+        <div class="content-container">
+            <div class="top-bar">
+                <button class="hamburger" id="hamburgerBtn" aria-label="Toggle sidebar menu">☰</button>
+                <div>
+                    <span class="op-title"><span class="op-title-accent" id="opTitleAccent">⊞</span> <span id="opTitleText">Cramer's Rule</span></span>
+                    <span class="op-title-sub" id="opTitleSub">Ax = b</span>
+                </div>
+            </div>
+
+            <div class="theory-card" id="theoryCard"></div>
+
+            <div class="input-area">
+                <div class="size-controls" id="sizeControls"></div>
+                <div class="matrices-row" id="matricesRow">
+                    <div class="matrix-panel" id="panelA">
+                        <div class="matrix-panel-header">
+                            <div class="matrix-panel-label" id="labelA">Matrix A</div>
+                            <div class="matrix-actions">
+                                <button class="panel-act-btn" onclick="quickFill('A', 'rand')" title="Randomize values">🎲 Random</button>
+                                <button class="panel-act-btn" onclick="quickFill('A', 'ident')" title="Set Identity matrix" id="btnIdentA">Ⅰ Identity</button>
+                                <button class="panel-act-btn" onclick="quickFill('A', 'clear')" title="Clear all values">🧹 Clear</button>
+                            </div>
+                        </div>
+                        <div class="matrix-grid" id="gridA" role="grid" aria-label="Matrix A input"></div>
+                    </div>
+                    <div class="matrix-panel vector-panel hidden" id="panelB">
+                        <div class="matrix-panel-header">
+                            <div class="matrix-panel-label" id="labelB">Vector b</div>
+                            <div class="matrix-actions">
+                                <button class="panel-act-btn" onclick="quickFill('B', 'rand')" title="Randomize values">🎲 Random</button>
+                                <button class="panel-act-btn" onclick="quickFill('B', 'clear')" title="Clear all values">🧹 Clear</button>
+                            </div>
+                        </div>
+                        <div class="matrix-grid" id="gridB" role="grid" aria-label="Vector b input"></div>
+                    </div>
+                    <div class="matrix-panel hidden" id="panelC">
+                        <div class="matrix-panel-header">
+                            <div class="matrix-panel-label" id="labelC">Matrix B</div>
+                            <div class="matrix-actions">
+                                <button class="panel-act-btn" onclick="quickFill('C', 'rand')" title="Randomize values">🎲 Random</button>
+                                <button class="panel-act-btn" onclick="quickFill('C', 'ident')" title="Set Identity matrix" id="btnIdentC">Ⅰ Identity</button>
+                                <button class="panel-act-btn" onclick="quickFill('C', 'clear')" title="Clear all values">🧹 Clear</button>
+                            </div>
+                        </div>
+                        <div class="matrix-grid" id="gridC" role="grid" aria-label="Matrix B input"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="btn-row">
+                <button class="btn btn-compute" id="btnCompute" aria-label="Compute">✦ Compute</button>
+                <button class="btn btn-fraction" id="btnFraction" aria-label="Toggle fraction mode">⅓ Fraction</button>
+                <button class="btn btn-copy" id="btnCopy" aria-label="Copy result">📋 Copy</button>
+                <button class="btn btn-reset" id="btnReset" aria-label="Reset inputs">↺ Reset</button>
+            </div>
+
+            <div class="notification" id="notification" role="alert" aria-live="polite"></div>
+            <div class="result-area" id="resultArea">
+                <div class="result-title" id="resultTitle">✦ Result</div>
+                <div class="result-body" id="resultBody"></div>
+            </div>
+
+            <!-- Engineering Dashboard & Guidelines -->
+            <div class="dashboard-help" id="dashboardHelp">
+                <div class="help-section">
+                    <div class="help-title">💡 Quick Engineering Tips</div>
+                    <ul class="help-list">
+                        <li>⌨️ <b>Keyboard Shortcuts:</b> Use arrow keys (← ↑ ↓ →) to navigate grid cells, and <kbd>Enter</kbd> to move to the next cell.</li>
+                        <li>🎲 <b>Instant Data:</b> Use the <b>Random</b> action in the panel headers to quickly generate test values.</li>
+                        <li>⚡ <b>Fraction Mode:</b> Click the <b>⅓ Fraction</b> button after computing to view answers as exact fractions!</li>
+                        <li>📐 <b>Dynamic Dimensions:</b> Scale the matrices dynamically up to 10×10 using the control panel above.</li>
+                    </ul>
+                </div>
+                <div class="help-section">
+                    <div class="help-title">🛠️ Engineering Applications</div>
+                    <div class="help-text">
+                        Matrix computations form the backbone of modern engineering:
+                        <ul class="app-list">
+                            <li><b>Cramer's Rule:</b> Solving electrical circuit mesh currents & truss analysis.</li>
+                            <li><b>LU Decomposition:</b> Used in structural simulation and fluid dynamics solvers.</li>
+                            <li><b>Eigenvalues:</b> Crucial for vibration analysis and mechanical resonance design.</li>
+                            <li><b>RREF:</b> Finding linear independence in system control theory.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Mobile Bottom Tabs -->
+    <nav class="bottom-tabs" id="bottomTabs" aria-label="Operation tabs"></nav>
+
+    <script>
+    /* ════════════════════════════════════════════════════
+       1. OPERATION CONFIG
+       ════════════════════════════════════════════════════ */
+    const OPS = {
+        cramer:    { name:"Cramer's Rule", icon:'⊞', color:'#43a047', input:'squareVec', desc:'Ax = b',
+                     theory:'<b>Cramer\'s Rule:</b> xᵢ = det(Aᵢ) / det(A), โดย Aᵢ คือเมทริกซ์ A ที่แทนคอลัมน์ i ด้วยเวกเตอร์ b' },
+        det:       { name:'Determinant',   icon:'⊡', color:'#1e88e5', input:'square',    desc:'det(A)',
+                     theory:'<b>Determinant:</b> det(A) = Σⱼ (-1)^(i+j) · aᵢⱼ · Mᵢⱼ (Cofactor Expansion along row i)' },
+        inverse:   { name:'Inverse',       icon:'⊟', color:'#8e24aa', input:'square',    desc:'A⁻¹',
+                     theory:'<b>Inverse:</b> A⁻¹ = adj(A) / det(A) เมื่อ det(A) ≠ 0 และ A·A⁻¹ = I' },
+        transpose: { name:'Transpose',     icon:'⊤', color:'#fb8c00', input:'any',       desc:'Aᵀ',
+                     theory:'<b>Transpose:</b> (Aᵀ)ᵢⱼ = Aⱼᵢ — สลับแถวกับคอลัมน์' },
+        multiply:  { name:'Multiply',      icon:'⊠', color:'#e53935', input:'twoDiff',   desc:'A × B',
+                     theory:'<b>Multiplication:</b> (AB)ᵢⱼ = Σₖ Aᵢₖ · Bₖⱼ — ต้องมี cols(A) = rows(B)' },
+        addsub:    { name:'Add / Sub',     icon:'±', color:'#00acc1', input:'twoSame',   desc:'A ± B',
+                     theory:'<b>Addition/Subtraction:</b> (A±B)ᵢⱼ = Aᵢⱼ ± Bᵢⱼ — ต้องมีขนาดเท่ากัน' },
+        eigen:     { name:'Eigenvalues',   icon:'λ', color:'#f4511e', input:'square',    desc:'det(A−λI)=0',
+                     theory:'<b>Eigenvalues:</b> det(A − λI) = 0 → ค่า λ ที่ทำให้ Av = λv' },
+        rank:      { name:'Rank',          icon:'#', color:'#546e7a', input:'any',       desc:'rank(A)',
+                     theory:'<b>Rank:</b> จำนวนแถวที่ไม่เป็นศูนย์ใน RREF ของ A — Nullity = n − rank' },
+        trace:     { name:'Trace',         icon:'Σ', color:'#7cb342', input:'square',    desc:'tr(A)',
+                     theory:'<b>Trace:</b> tr(A) = Σᵢ aᵢᵢ = a₁₁ + a₂₂ + ... + aₙₙ (ผลรวม main diagonal)' },
+        adjugate:  { name:'Adjugate',      icon:'adj', color:'#5e35b1', input:'square',  desc:'adj(A)',
+                     theory:'<b>Adjugate:</b> adj(A) = Cᵀ โดย Cᵢⱼ = (-1)^(i+j) · Mᵢⱼ (Cofactor Matrix transposed)' },
+        rref:      { name:'RREF',          icon:'▤', color:'#6d4c41', input:'any',       desc:'Gauss Elim.',
+                     theory:'<b>RREF:</b> Reduced Row Echelon Form — Gaussian Elimination จนทุก pivot = 1 และคอลัมน์ pivot มีค่าอื่นเป็น 0' },
+        lu:        { name:'LU Decomp',     icon:'△', color:'#3949ab', input:'square',    desc:'PA = LU',
+                     theory:'<b>LU Decomposition:</b> PA = LU — L = lower triangular (diag=1), U = upper triangular, P = permutation matrix' },
+    };
+    const OP_KEYS = Object.keys(OPS);
+
+    /* ════════════════════════════════════════════════════
+       2. STATE
+       ════════════════════════════════════════════════════ */
+    let currentOp = 'cramer';
+    let lastResult = null;
+    let showFraction = false;
+    let activeFireworks = 0;
+    let notifTimer = null;
+
+    /* ════════════════════════════════════════════════════
+       3. DOM REFS
+       ════════════════════════════════════════════════════ */
+    const $ = id => document.getElementById(id);
+    const sidebar = $('sidebar'), overlay = $('sidebarOverlay'), hamburger = $('hamburgerBtn');
+    const opTitleAccent = $('opTitleAccent'), opTitleText = $('opTitleText'), opTitleSub = $('opTitleSub');
+    const theoryCard = $('theoryCard'), sizeControls = $('sizeControls');
+    const panelA = $('panelA'), panelB = $('panelB'), panelC = $('panelC');
+    const labelA = $('labelA'), labelB = $('labelB'), labelC = $('labelC');
+    const gridA = $('gridA'), gridB = $('gridB'), gridC = $('gridC');
+    const btnCompute = $('btnCompute'), btnReset = $('btnReset');
+    const btnCopy = $('btnCopy'), btnFraction = $('btnFraction');
+    const notifEl = $('notification'), resultArea = $('resultArea');
+    const resultTitle = $('resultTitle'), resultBody = $('resultBody');
+    const bottomTabs = $('bottomTabs'), sidebarOps = $('sidebarOps');
+
+    /* ════════════════════════════════════════════════════
+       4. INITIALIZATION
+       ════════════════════════════════════════════════════ */
+    function init() {
+        buildSidebar();
+        buildBottomTabs();
+        buildSizeControls();
+        switchOp('cramer');
+        hamburger.addEventListener('click', toggleSidebar);
+        overlay.addEventListener('click', closeSidebar);
+        btnCompute.addEventListener('click', compute);
+        btnReset.addEventListener('click', resetAll);
+        btnCopy.addEventListener('click', copyResult);
+        btnFraction.addEventListener('click', toggleFraction);
+    }
+
+    function buildSidebar() {
+        let html = '';
+        for (const k of OP_KEYS) {
+            const o = OPS[k];
+            html += `<button class="op-item" data-op="${k}">
+                <span class="op-icon" style="background:${o.color}22;color:${o.color}">${o.icon}</span>
+                <span class="op-name">${o.name}</span>
+                <span class="op-desc">${o.desc}</span>
+            </button>`;
+        }
+        sidebarOps.innerHTML = html;
+        sidebarOps.addEventListener('click', e => {
+            const btn = e.target.closest('.op-item');
+            if (btn) { switchOp(btn.dataset.op); closeSidebar(); }
+        });
+    }
+
+    function buildBottomTabs() {
+        let html = '';
+        for (const k of OP_KEYS) {
+            const o = OPS[k];
+            html += `<button class="btab" data-op="${k}" title="${o.name}">
+                <span class="btab-icon" style="color:inherit">${o.icon}</span>
+                <span>${o.name.split(' ')[0]}</span>
+            </button>`;
+        }
+        bottomTabs.innerHTML = html;
+        bottomTabs.addEventListener('click', e => {
+            const btn = e.target.closest('.btab');
+            if (btn) switchOp(btn.dataset.op);
+        });
+    }
+
+    function buildSizeControls() {
+        const makeSelect = (id, label, min, max, def) => {
+            let opts = '';
+            for (let i = min; i <= max; i++) {
+                opts += `<option value="${i}"${i===def?' selected':''}>${i}</option>`;
+            }
+            return `<div class="size-group" id="sg_${id}"><label>${label}</label><select id="sel_${id}" aria-label="${label}">${opts}</select></div>`;
+        };
+        sizeControls.innerHTML =
+            `<div class="size-controls-title"><span style="font-size:1.15rem;margin-right:6px">📐</span> Dimensions</div>` +
+            makeSelect('n','Size (n×n)',2,10,3) +
+            makeSelect('rows','Rows',2,10,3) +
+            makeSelect('cols','Columns',2,10,3) +
+            makeSelect('colsB','Cols B',2,10,3);
+
+        ['n','rows','cols','colsB'].forEach(id => {
+            $('sel_'+id).addEventListener('change', refreshGrids);
+        });
+    }
+
+    /* ════════════════════════════════════════════════════
+       5. SIDEBAR & NAVIGATION
+       ════════════════════════════════════════════════════ */
+    function toggleSidebar() { sidebar.classList.toggle('open'); overlay.classList.toggle('active'); }
+    function closeSidebar() { sidebar.classList.remove('open'); overlay.classList.remove('active'); }
+
+    function switchOp(op) {
+        if (!OPS[op]) return;
+        currentOp = op;
+        const o = OPS[op];
+        // Update accent
+        document.documentElement.style.setProperty('--accent', o.color);
+        document.documentElement.style.setProperty('--accent-dim', o.color + '25');
+        // Update title
+        opTitleAccent.textContent = o.icon;
+        opTitleText.textContent = o.name;
+        opTitleSub.textContent = o.desc;
+        theoryCard.innerHTML = `<span style="font-size:1.2rem;line-height:1">📖</span> <span>${o.theory}</span>`;
+        // Highlight nav
+        document.querySelectorAll('.op-item').forEach(b => b.classList.toggle('active', b.dataset.op === op));
+        document.querySelectorAll('.btab').forEach(b => b.classList.toggle('active', b.dataset.op === op));
+        // Reset state
+        lastResult = null; showFraction = false;
+        btnFraction.textContent = '⅓ Fraction';
+        btnFraction.style.display = 'none';
+        btnCopy.style.display = 'none';
+        resultArea.style.display = 'none';
+        hideNotif();
+        // Setup inputs
+        setupInputs();
+        refreshGrids();
+    }
+
+    /* ════════════════════════════════════════════════════
+       6. DYNAMIC INPUT SETUP
+       ════════════════════════════════════════════════════ */
+    function setupInputs() {
+        const t = OPS[currentOp].input;
+        const show = ids => ids.forEach(id => $('sg_'+id).classList.remove('hidden'));
+        const hide = ids => ids.forEach(id => $('sg_'+id).classList.add('hidden'));
+
+        hide(['n','rows','cols','colsB']);
+        panelA.classList.remove('hidden');
+        panelB.classList.add('hidden');
+        panelC.classList.add('hidden');
+        labelA.textContent = 'Matrix A';
+        panelA.classList.remove('vector-panel');
+        panelB.classList.add('vector-panel');
+
+        switch (t) {
+            case 'square':
+                show(['n']); labelA.textContent = 'Matrix A (n×n)'; break;
+            case 'squareVec':
+                show(['n']); labelA.textContent = 'Matrix A (n×n)';
+                panelB.classList.remove('hidden'); labelB.textContent = 'Vector b'; break;
+            case 'any':
+                show(['rows','cols']); labelA.textContent = 'Matrix A (m×n)'; break;
+            case 'twoDiff':
+                show(['rows','cols','colsB']); labelA.textContent = 'Matrix A (m×k)';
+                panelC.classList.remove('hidden'); labelC.textContent = 'Matrix B (k×p)'; break;
+            case 'twoSame':
+                show(['rows','cols']); labelA.textContent = 'Matrix A (m×n)';
+                panelC.classList.remove('hidden'); labelC.textContent = 'Matrix B (m×n)'; break;
+        }
+    }
+
+    function getDims() {
+        const t = OPS[currentOp].input;
+        const v = id => parseInt($('sel_'+id).value);
+        switch (t) {
+            case 'square': case 'squareVec': return { rA:v('n'), cA:v('n'), rB:v('n'), cB:1, rC:0, cC:0 };
+            case 'any':       return { rA:v('rows'), cA:v('cols'), rB:0, cB:0, rC:0, cC:0 };
+            case 'twoDiff':   return { rA:v('rows'), cA:v('cols'), rB:0, cB:0, rC:v('cols'), cC:v('colsB') };
+            case 'twoSame':   return { rA:v('rows'), cA:v('cols'), rB:0, cB:0, rC:v('rows'), cC:v('cols') };
+        }
+    }
+
+    function refreshGrids() {
+        const d = getDims();
+        fillGrid(gridA, d.rA, d.cA, 'a');
+        const t = OPS[currentOp].input;
+        if (t === 'squareVec') fillGrid(gridB, d.rB, d.cB, 'b');
+        if (t === 'twoDiff')   fillGrid(gridC, d.rC, d.cC, 'b');
+        if (t === 'twoSame')   fillGrid(gridC, d.rC, d.cC, 'b');
+        lastResult = null;
+        resultArea.style.display = 'none';
+        btnCopy.style.display = 'none';
+        btnFraction.style.display = 'none';
+
+        // Toggle Identity A button visibility based on whether Matrix A is square
+        const btnIdentA = $('btnIdentA');
+        if (btnIdentA) btnIdentA.style.display = (d.rA === d.cA) ? 'inline-block' : 'none';
+
+        // Toggle Identity C button visibility based on whether Matrix B is square
+        const btnIdentC = $('btnIdentC');
+        if (btnIdentC) btnIdentC.style.display = (d.rC === d.cC && !panelC.classList.contains('hidden')) ? 'inline-block' : 'none';
+    }
+
+    /* ════════════════════════════════════════════════════
+       7. MATRIX GRID GENERATION
+       ════════════════════════════════════════════════════ */
+    function fillGrid(container, rows, cols, prefix) {
+        container.innerHTML = '';
+        container.style.gridTemplateColumns = `repeat(${cols}, minmax(var(--matrix-col-w), 1fr))`;
+        container.style.maxWidth = `calc(${cols} * (var(--matrix-col-w) + 12px))`;
+        container.style.width = '100%';
+        container.style.margin = '0 auto';
+        
+        for (let i = 0; i < rows; i++) {
+            for (let j = 0; j < cols; j++) {
+                const inp = document.createElement('input');
+                inp.type = 'number'; inp.step = 'any';
+                inp.classList.add('matrix-input');
+                const lbl = cols===1 ? `${prefix}${i+1}` : `${prefix}${i+1}${j+1}`;
+                inp.placeholder = lbl;
+                inp.setAttribute('aria-label', `${prefix} row ${i+1} col ${j+1}`);
+                inp.addEventListener('keydown', e => gridNav(e, container, i, j, rows, cols));
+                container.appendChild(inp);
+            }
+        }
+    }
+
+    function gridNav(e, cont, r, c, rows, cols) {
+        const inputs = cont.querySelectorAll('input');
+        let tr = r, tc = c;
+        switch (e.key) {
+            case 'ArrowRight': tc = Math.min(c+1,cols-1); break;
+            case 'ArrowLeft':  tc = Math.max(c-1,0); break;
+            case 'ArrowDown':  tr = Math.min(r+1,rows-1); break;
+            case 'ArrowUp':    tr = Math.max(r-1,0); break;
+            case 'Enter': e.preventDefault(); const nx=r*cols+c+1; if(nx<inputs.length) inputs[nx].focus(); return;
+            default: return;
+        }
+        if (tr!==r||tc!==c) { e.preventDefault(); inputs[tr*cols+tc]?.focus(); }
+    }
+
+    /* ════════════════════════════════════════════════════
+       8. MATRIX READING
+       ════════════════════════════════════════════════════ */
+    function readGrid(container, rows, cols) {
+        const inputs = container.querySelectorAll('input');
+        const mat = []; let err = false;
+        inputs.forEach(inp => inp.classList.remove('input-error'));
+        for (let i = 0; i < rows; i++) {
+            mat.push([]);
+            for (let j = 0; j < cols; j++) {
+                const inp = inputs[i*cols+j];
+                const v = parseFloat(inp.value);
+                if (isNaN(v)) { inp.classList.add('input-error'); if(!err){inp.focus();} err=true; }
+                else mat[i].push(v);
+            }
+        }
+        return err ? null : mat;
+    }
+
+    function readVec(container, n) {
+        const m = readGrid(container, n, 1);
+        return m ? m.map(r => r[0]) : null;
+    }
+
+    /* ════════════════════════════════════════════════════
+       9. COMPUTE DISPATCHER
+       ════════════════════════════════════════════════════ */
+    function compute() {
+        hideNotif();
+        const d = getDims();
+        const A = readGrid(gridA, d.rA, d.cA);
+        if (!A) { showNotif('⚠️ กรุณากรอกค่าใน Matrix A ให้ครบ','error'); return; }
+
+        let B = null, C = null;
+        const t = OPS[currentOp].input;
+        if (t === 'squareVec') {
+            B = readVec(gridB, d.rB);
+            if (!B) { showNotif('⚠️ กรุณากรอกค่าใน Vector b ให้ครบ','error'); return; }
+        }
+        if (t === 'twoDiff' || t === 'twoSame') {
+            C = readGrid(gridC, d.rC, d.cC);
+            if (!C) { showNotif('⚠️ กรุณากรอกค่าใน Matrix B ให้ครบ','error'); return; }
+        }
+
+        try {
+            switch (currentOp) {
+                case 'cramer':    lastResult = solveCramer(A, B); break;
+                case 'det':       lastResult = solveDet(A); break;
+                case 'inverse':   lastResult = solveInverse(A); break;
+                case 'transpose': lastResult = solveTranspose(A); break;
+                case 'multiply':  lastResult = solveMultiply(A, C); break;
+                case 'addsub':    lastResult = solveAddSub(A, C); break;
+                case 'eigen':     lastResult = solveEigen(A); break;
+                case 'rank':      lastResult = solveRank(A); break;
+                case 'trace':     lastResult = solveTrace(A); break;
+                case 'adjugate':  lastResult = solveAdjugate(A); break;
+                case 'rref':      lastResult = solveRREF(A); break;
+                case 'lu':        lastResult = solveLU(A); break;
+            }
+        } catch(e) {
+            showNotif('❌ Error: ' + e.message, 'error');
+            return;
+        }
+
+        if (lastResult?.error) {
+            showNotif('⚠️ ' + lastResult.error, 'error');
+            resultArea.style.display = 'none';
+            return;
+        }
+
+        showFraction = false;
+        btnFraction.textContent = '⅓ Fraction';
+        renderResult();
+        resultArea.style.display = 'block';
+        btnCopy.style.display = 'inline-flex';
+        // Show fraction toggle only for ops that produce numeric answers
+        const fracOps = ['cramer','det','inverse','trace','adjugate','multiply','addsub','transpose','rref','lu','rank'];
+        btnFraction.style.display = fracOps.includes(currentOp) ? 'inline-flex' : 'none';
+        hideNotif();
+        spawnFireworks(15);
+    }
+
+    /* ════════════════════════════════════════════════════
+       10. OPERATIONS
+       ════════════════════════════════════════════════════ */
+
+    // ──── Cramer's Rule ────
+    function solveCramer(A, b) {
+        const n = A.length;
+        const detA = math.det(A);
+        if (Math.abs(detA) < 1e-10) return { error: 'det(A) ≈ 0 — ระบบสมการไม่มีคำตอบเดียว (Singular Matrix)' };
+        const vars = [];
+        for (let i = 0; i < n; i++) {
+            const Ai = A.map(r => [...r]);
+            for (let r = 0; r < n; r++) Ai[r][i] = b[r];
+            const detAi = math.det(Ai);
+            vars.push({ idx: i, detAi, value: detAi / detA });
+        }
+        return { op:'cramer', detA, vars };
+    }
+
+    // ──── Determinant ────
+    function solveDet(A) {
+        return { op:'det', det: math.det(A), size: A.length, matrix: A };
+    }
+
+    // ──── Inverse ────
+    function solveInverse(A) {
+        const det = math.det(A);
+        if (Math.abs(det) < 1e-10) return { error: 'det(A) ≈ 0 — เมทริกซ์ไม่มี Inverse (Singular Matrix)' };
+        const inv = math.inv(A);
+        const invArr = toArr2D(inv);
+        const verify = toArr2D(math.multiply(A, invArr));
+        return { op:'inverse', det, inverse: invArr, verify };
+    }
+
+    // ──── Transpose ────
+    function solveTranspose(A) {
+        return { op:'transpose', result: toArr2D(math.transpose(A)), original: A };
+    }
+
+    // ──── Multiply ────
+    function solveMultiply(A, B) {
+        if (A[0].length !== B.length) return { error: `cols(A)=${A[0].length} ≠ rows(B)=${B.length} — ไม่สามารถคูณได้` };
+        return { op:'multiply', product: toArr2D(math.multiply(A, B)), dimA:[A.length,A[0].length], dimB:[B.length,B[0].length] };
+    }
+
+    // ──── Add/Sub ────
+    function solveAddSub(A, B) {
+        if (A.length!==B.length || A[0].length!==B[0].length)
+            return { error: 'ขนาดเมทริกซ์ไม่เท่ากัน — ต้องมี m×n เหมือนกัน' };
+        return { op:'addsub', sum: toArr2D(math.add(A,B)), diff: toArr2D(math.subtract(A,B)) };
+    }
+
+    // ──── Eigenvalues ────
+    function solveEigen(A) {
+        try {
+            const res = math.eigs(A);
+            const values = res.values ? (Array.isArray(res.values) ? res.values : res.values.toArray ? res.values.toArray() : []) : [];
+            const evecs = res.eigenvectors || [];
+            return { op:'eigen', values, eigenvectors: evecs };
+        } catch(e) {
+            return { error: 'ไม่สามารถคำนวณ Eigenvalues ได้: ' + e.message + ' (ลองใช้ Symmetric Matrix)' };
+        }
+    }
+
+    // ──── Rank ────
+    function solveRank(A) {
+        const rrefResult = computeRREF(A);
+        const rank = rrefResult.filter(row => row.some(v => Math.abs(v)>1e-10)).length;
+        const nullity = A[0].length - rank;
+        return { op:'rank', rank, nullity, rows: A.length, cols: A[0].length, rref: rrefResult };
+    }
+
+    // ──── Trace ────
+    function solveTrace(A) {
+        const diag = [];
+        let tr = 0;
+        for (let i = 0; i < A.length; i++) { diag.push(A[i][i]); tr += A[i][i]; }
+        return { op:'trace', trace: tr, diagonal: diag, matrix: A };
+    }
+
+    // ──── Adjugate ────
+    function solveAdjugate(A) {
+        const n = A.length;
+        const cof = [];
+        for (let i = 0; i < n; i++) {
+            cof.push([]);
+            for (let j = 0; j < n; j++) {
+                const minor = A.filter((_,ri) => ri!==i).map(row => row.filter((_,ci) => ci!==j));
+                cof[i].push(Math.pow(-1,i+j) * math.det(minor));
+            }
+        }
+        const adj = toArr2D(math.transpose(cof));
+        return { op:'adjugate', cofactors: cof, adjugate: adj, det: math.det(A) };
+    }
+
+    // ──── RREF (with steps) ────
+    function solveRREF(A) {
+        const m = A.length, n = A[0].length;
+        const M = A.map(r => [...r]);
+        const steps = [];
+        let pivotRow = 0;
+
+        for (let col = 0; col < n && pivotRow < m; col++) {
+            let maxR = pivotRow;
+            for (let r = pivotRow+1; r < m; r++) if (Math.abs(M[r][col])>Math.abs(M[maxR][col])) maxR=r;
+            if (Math.abs(M[maxR][col]) < 1e-10) continue;
+
+            if (maxR !== pivotRow) {
+                [M[pivotRow], M[maxR]] = [M[maxR], M[pivotRow]];
+                steps.push({ desc:`R${pivotRow+1} ↔ R${maxR+1}`, mat: M.map(r=>[...r]) });
+            }
+            const s = M[pivotRow][col];
+            if (Math.abs(s-1) > 1e-10) {
+                for (let j=0;j<n;j++) M[pivotRow][j]/=s;
+                steps.push({ desc:`R${pivotRow+1} ← R${pivotRow+1} ÷ ${fmt(s)}`, mat: M.map(r=>[...r]) });
+            }
+            for (let r=0;r<m;r++) {
+                if (r===pivotRow || Math.abs(M[r][col])<1e-10) continue;
+                const f = M[r][col];
+                for (let j=0;j<n;j++) M[r][j]-=f*M[pivotRow][j];
+                steps.push({ desc:`R${r+1} ← R${r+1} − (${fmt(f)})·R${pivotRow+1}`, mat: M.map(r=>[...r]) });
+            }
+            pivotRow++;
+        }
+        return { op:'rref', result: M, steps, original: A };
+    }
+
+    function computeRREF(A) {
+        const m = A.length, n = A[0].length;
+        const M = A.map(r => [...r]);
+        let pivotRow = 0;
+        for (let col=0;col<n&&pivotRow<m;col++) {
+            let maxR=pivotRow;
+            for (let r=pivotRow+1;r<m;r++) if(Math.abs(M[r][col])>Math.abs(M[maxR][col])) maxR=r;
+            if (Math.abs(M[maxR][col])<1e-10) continue;
+            if (maxR!==pivotRow) [M[pivotRow],M[maxR]]=[M[maxR],M[pivotRow]];
+            const s=M[pivotRow][col]; for(let j=0;j<n;j++) M[pivotRow][j]/=s;
+            for (let r=0;r<m;r++) { if(r===pivotRow) continue; const f=M[r][col]; for(let j=0;j<n;j++) M[r][j]-=f*M[pivotRow][j]; }
+            pivotRow++;
+        }
+        return M;
+    }
+
+    // ──── LU Decomposition ────
+    function solveLU(A) {
+        try {
+            const res = math.lup(A);
+            const n = A.length;
+            const L = toArr2D(res.L);
+            const U = toArr2D(res.U);
+            const p = res.p;
+            const P = Array.from({length:n}, ()=>Array(n).fill(0));
+            p.forEach((pi,i) => P[i][pi] = 1);
+            const LU = toArr2D(math.multiply(L,U));
+            const PA = toArr2D(math.multiply(P,A));
+            return { op:'lu', L, U, P, LU, PA };
+        } catch(e) {
+            return { error: 'LU Decomposition ล้มเหลว: ' + e.message };
+        }
+    }
+
+    /* ════════════════════════════════════════════════════
+       11. RESULT RENDERING
+       ════════════════════════════════════════════════════ */
+    function renderResult() {
+        if (!lastResult) return;
+        const r = lastResult;
+        resultTitle.textContent = '✦ ' + OPS[currentOp].name + ' — Result';
+        let h = '';
+
+        switch (r.op) {
+            case 'cramer': h = renderCramer(r); break;
+            case 'det': h = renderDet(r); break;
+            case 'inverse': h = renderInverse(r); break;
+            case 'transpose': h = renderTranspose(r); break;
+            case 'multiply': h = renderMultiply(r); break;
+            case 'addsub': h = renderAddSub(r); break;
+            case 'eigen': h = renderEigen(r); break;
+            case 'rank': h = renderRank(r); break;
+            case 'trace': h = renderTrace(r); break;
+            case 'adjugate': h = renderAdjugate(r); break;
+            case 'rref': h = renderRREF(r); break;
+            case 'lu': h = renderLU(r); break;
+        }
+        resultBody.innerHTML = h;
+    }
+
+    function renderCramer(r) {
+        let h = `<div class="formula-line"><span class="highlight">det(A) = ${fmtV(r.detA)}</span></div><hr class="result-divider">`;
+        h += `<div class="result-grid">`;
+        for (const v of r.vars) {
+            h += `<div class="result-var-block" style="margin-bottom: 0;">
+                <span class="highlight" style="font-size:1.05rem; font-weight:700;">x<sub>${v.idx+1}</sub></span><br>
+                Δ<sub>${v.idx+1}</sub> = ${fmtV(v.detAi)}<br>
+                x<sub>${v.idx+1}</sub> = ${fmtV(v.detAi)} / ${fmtV(r.detA)}<br>
+                <strong style="font-size:1.1rem; color: var(--accent);">x<sub>${v.idx+1}</sub> = ${fmtV(v.value)}</strong>
+            </div>`;
+        }
+        h += `</div>`;
+        return h;
+    }
+
+    function renderDet(r) {
+        return `<div class="formula-line" style="font-size:1.15rem"><span class="highlight">det(A) = ${fmtV(r.det)}</span></div>
+            <div class="result-section-title">Matrix A (${r.size}×${r.size})</div>
+            ${matHTML(r.matrix, 'A')}`;
+    }
+
+    function renderInverse(r) {
+        return `<div class="formula-line"><span class="highlight">det(A) = ${fmtV(r.det)}</span></div>
+            <div class="result-section-title">A⁻¹</div>
+            ${matHTML(r.inverse, 'A⁻¹')}
+            <div class="result-section-title">Verification: A · A⁻¹ ≈ I</div>
+            ${matHTML(r.verify, 'A·A⁻¹')}`;
+    }
+
+    function renderTranspose(r) {
+        return `<div class="result-section-title">Original A (${r.original.length}×${r.original[0].length})</div>
+            ${matHTML(r.original, 'A')}
+            <div class="result-section-title">Aᵀ (${r.result.length}×${r.result[0].length})</div>
+            ${matHTML(r.result, 'Aᵀ')}`;
+    }
+
+    function renderMultiply(r) {
+        return `<div class="formula-line">A (${r.dimA[0]}×${r.dimA[1]}) × B (${r.dimB[0]}×${r.dimB[1]}) = C (${r.product.length}×${r.product[0].length})</div>
+            <div class="result-section-title">Product C = A × B</div>
+            ${matHTML(r.product, 'C')}`;
+    }
+
+    function renderAddSub(r) {
+        return `<div class="result-section-title">A + B</div>${matHTML(r.sum, 'A+B')}
+            <div class="result-section-title">A − B</div>${matHTML(r.diff, 'A−B')}`;
+    }
+
+    function renderEigen(r) {
+        let h = '<div class="result-section-title">Eigenvalues (λ)</div>';
+        if (r.values.length === 0) return h + '<div>ไม่พบ eigenvalues</div>';
+        h += `<div class="result-grid">`;
+        r.values.forEach((v, i) => {
+            const vs = typeof v === 'object' && v.im !== undefined
+                ? `${fmt(v.re)} ${v.im>=0?'+':''}${fmt(v.im)}i`
+                : fmtV(v);
+            h += `<div class="result-var-block" style="margin-bottom:0;"><span class="highlight">λ<sub>${i+1}</sub> = ${vs}</span></div>`;
+        });
+        h += `</div>`;
+        if (r.eigenvectors && r.eigenvectors.length > 0) {
+            h += '<div class="result-section-title">Eigenvectors</div>';
+            h += `<div class="result-grid">`;
+            r.eigenvectors.forEach((ev, i) => {
+                const vec = ev.vector ? (Array.isArray(ev.vector) ? ev.vector : ev.vector.toArray ? ev.vector.toArray() : []) : [];
+                if (vec.length > 0) {
+                    const vecStr = vec.map(v => typeof v === 'object' && v.im !== undefined ? `${fmt(v.re)}${v.im>=0?'+':''}${fmt(v.im)}i` : fmtV(v)).join(', ');
+                    h += `<div class="result-var-block" style="margin-bottom:0;"><span class="highlight">v<sub>${i+1}</sub></span> = [${vecStr}]</div>`;
+                }
+            });
+            h += `</div>`;
+        }
+        return h;
+    }
+
+    function renderRank(r) {
+        return `<div class="formula-line" style="font-size:1.05rem">
+                <span class="highlight">rank(A) = ${r.rank}</span> &nbsp; | &nbsp;
+                <span class="highlight">nullity = ${r.nullity}</span>
+            </div>
+            <div class="formula-line" style="color:var(--text-secondary)">
+                Matrix: ${r.rows}×${r.cols} &nbsp;|&nbsp; rank + nullity = ${r.rank} + ${r.nullity} = ${r.rank+r.nullity} = cols
+            </div>
+            <div class="result-section-title">RREF</div>
+            ${matHTML(r.rref, 'RREF')}`;
+    }
+
+    function renderTrace(r) {
+        const diagStr = r.diagonal.map((v,i) => `a<sub>${i+1}${i+1}</sub>=${fmtV(v)}`).join(' + ');
+        return `<div class="formula-line" style="font-size:1.15rem"><span class="highlight">tr(A) = ${fmtV(r.trace)}</span></div>
+            <div class="formula-line" style="color:var(--text-secondary)">= ${diagStr}</div>
+            <div class="result-section-title">Matrix A (diagonal highlighted)</div>
+            ${matHTML(r.matrix, 'A', true)}`;
+    }
+
+    function renderAdjugate(r) {
+        return `<div class="formula-line"><span class="highlight">det(A) = ${fmtV(r.det)}</span></div>
+            <div class="result-section-title">Cofactor Matrix C</div>
+            ${matHTML(r.cofactors, 'C')}
+            <div class="result-section-title">Adjugate adj(A) = Cᵀ</div>
+            ${matHTML(r.adjugate, 'adj(A)')}`;
+    }
+
+    function renderRREF(r) {
+        let h = `<div class="result-section-title">RREF Result</div>${matHTML(r.result, 'RREF')}`;
+        if (r.steps.length > 0) {
+            h += `<div class="result-section-title">Step-by-step (${r.steps.length} steps)</div>`;
+            r.steps.forEach((s, i) => {
+                h += `<div class="step-item"><div class="step-op">Step ${i+1}: ${s.desc}</div>${matHTMLSmall(s.mat)}</div>`;
+            });
+        }
+        return h;
+    }
+
+    function renderLU(r) {
+        return `<div class="formula-line"><span class="highlight">PA = LU</span></div>
+            <div class="result-section-title">P (Permutation)</div>${matHTML(r.P, 'P')}
+            <div class="result-section-title">L (Lower Triangular)</div>${matHTML(r.L, 'L')}
+            <div class="result-section-title">U (Upper Triangular)</div>${matHTML(r.U, 'U')}
+            <div class="result-section-title">Verification: L×U</div>${matHTML(r.LU, 'L×U')}
+            <div class="result-section-title">PA</div>${matHTML(r.PA, 'PA')}`;
+    }
+
+    /* ════════════════════════════════════════════════════
+       12. MATRIX HTML HELPERS
+       ════════════════════════════════════════════════════ */
+    function matHTML(data, label, highlightDiag) {
+        if (!data || data.length === 0) return '';
+        let h = `<div class="result-matrix-wrap"><span class="result-matrix-label">${label} =</span><div class="result-matrix"><table>`;
+        for (let i = 0; i < data.length; i++) {
+            h += '<tr>';
+            for (let j = 0; j < data[i].length; j++) {
+                const cls = highlightDiag && i===j ? ' class="diag-highlight"' : '';
+                h += `<td${cls}>${fmtV(data[i][j])}</td>`;
+            }
+            h += '</tr>';
+        }
+        h += '</table></div></div>';
+        return h;
+    }
+
+    function matHTMLSmall(data) {
+        if (!data) return '';
+        let h = '<div class="result-matrix" style="font-size:0.78rem;margin:4px 0"><table>';
+        for (const row of data) {
+            h += '<tr>';
+            for (const v of row) h += `<td>${fmtV(v)}</td>`;
+            h += '</tr>';
+        }
+        return h + '</table></div>';
+    }
+
+    /* ════════════════════════════════════════════════════
+       13. NUMBER FORMATTING
+       ════════════════════════════════════════════════════ */
+    function fmt(n) {
+        if (typeof n !== 'number' || isNaN(n)) return String(n);
+        if (Math.abs(n) < 1e-10) return '0';
+        const f = n.toFixed(4);
+        return parseFloat(f).toString();
+    }
+
+    function fmtV(n) {
+        if (typeof n === 'object' && n !== null) {
+            if (n.re !== undefined) return `${fmt(n.re)}${n.im>=0?'+':''}${fmt(n.im)}i`;
+            return String(n);
+        }
+        if (showFraction) return toFrac(n);
+        return fmt(n);
+    }
+
+    function toFrac(n) {
+        if (typeof n !== 'number' || isNaN(n)) return String(n);
+        if (Math.abs(n) < 1e-10) return '0';
+        try {
+            const f = math.fraction(n);
+            if (f.d === 1) return String(f.s * f.n);
+            return `${f.s<0?'-':''}${f.n}/${f.d}`;
+        } catch { return fmt(n); }
+    }
+
+    function toArr2D(m) {
+        if (Array.isArray(m)) {
+            if (m.length > 0 && Array.isArray(m[0])) return m.map(r => r.map(v => typeof v === 'number' ? v : parseFloat(v)||0));
+            return [m];
+        }
+        if (m && typeof m.toArray === 'function') return toArr2D(m.toArray());
+        if (m && m._data) return toArr2D(m._data);
+        return [[m]];
+    }
+
+    /* ════════════════════════════════════════════════════
+       14. FRACTION TOGGLE
+       ════════════════════════════════════════════════════ */
+    function toggleFraction() {
+        showFraction = !showFraction;
+        btnFraction.textContent = showFraction ? '🔢 Decimal' : '⅓ Fraction';
+        renderResult();
+    }
+
+    /* ════════════════════════════════════════════════════
+       15. COPY TO CLIPBOARD
+       ════════════════════════════════════════════════════ */
+    function copyResult() {
+        if (!lastResult) return;
+        const r = lastResult;
+        let text = OPS[currentOp].name + ' Result\n';
+        text += '═'.repeat(30) + '\n';
+
+        const matStr = m => m.map(row => row.map(v => fmtV(v)).join('\t')).join('\n');
+
+        switch (r.op) {
+            case 'cramer':
+                text += `det(A) = ${fmtV(r.detA)}\n`;
+                r.vars.forEach(v => text += `x${v.idx+1} = ${fmtV(v.value)}  (Δ${v.idx+1} = ${fmtV(v.detAi)})\n`);
+                break;
+            case 'det': text += `det(A) = ${fmtV(r.det)}\n`; break;
+            case 'inverse':
+                text += `det(A) = ${fmtV(r.det)}\nA⁻¹:\n${matStr(r.inverse)}\n`; break;
+            case 'transpose': text += `Aᵀ:\n${matStr(r.result)}\n`; break;
+            case 'multiply': text += `C = A×B:\n${matStr(r.product)}\n`; break;
+            case 'addsub':
+                text += `A+B:\n${matStr(r.sum)}\nA-B:\n${matStr(r.diff)}\n`; break;
+            case 'eigen':
+                r.values.forEach((v,i) => text += `λ${i+1} = ${typeof v==='object'?`${v.re}+${v.im}i`:fmtV(v)}\n`); break;
+            case 'rank':
+                text += `rank = ${r.rank}, nullity = ${r.nullity}\n`; break;
+            case 'trace': text += `tr(A) = ${fmtV(r.trace)}\n`; break;
+            case 'adjugate':
+                text += `Cofactor:\n${matStr(r.cofactors)}\nAdj(A):\n${matStr(r.adjugate)}\n`; break;
+            case 'rref': text += `RREF:\n${matStr(r.result)}\n`; break;
+            case 'lu':
+                text += `P:\n${matStr(r.P)}\nL:\n${matStr(r.L)}\nU:\n${matStr(r.U)}\n`; break;
+        }
+
+        navigator.clipboard.writeText(text).then(() => {
+            const orig = btnCopy.textContent;
+            btnCopy.textContent = '✓ Copied!';
+            setTimeout(() => btnCopy.textContent = orig, 1800);
+        }).catch(() => showNotif('คัดลอกไม่ได้ ลองเลือกข้อความด้วยมือ','error'));
+    }
+
+    /* ════════════════════════════════════════════════════
+       16. RESET
+       ════════════════════════════════════════════════════ */
+    function resetAll() {
+        $('sel_n').value = 3; $('sel_rows').value = 3;
+        $('sel_cols').value = 3; $('sel_colsB').value = 3;
+        refreshGrids();
+        resultArea.style.display = 'none';
+        btnCopy.style.display = 'none';
+        btnFraction.style.display = 'none';
+        lastResult = null; showFraction = false;
+        btnFraction.textContent = '⅓ Fraction';
+        hideNotif();
+    }
+
+    /* ════════════════════════════════════════════════════
+       16. QUICK FILL UTILITIES
+       ════════════════════════════════════════════════════ */
+    function quickFill(panel, type) {
+        let grid;
+        if (panel === 'A') grid = $('gridA');
+        else if (panel === 'B') grid = $('gridB');
+        else if (panel === 'C') grid = $('gridC');
+        
+        if (!grid) return;
+        const inputs = grid.querySelectorAll('input');
+        const d = getDims();
+        
+        let rows, cols;
+        if (panel === 'A') { rows = d.rA; cols = d.cA; }
+        else if (panel === 'B') { rows = d.rB; cols = d.cB; }
+        else if (panel === 'C') { rows = d.rC; cols = d.cC; }
+
+        inputs.forEach((inp, idx) => {
+            const r = Math.floor(idx / cols);
+            const c = idx % cols;
+            if (type === 'clear') {
+                inp.value = '';
+                inp.classList.remove('input-error');
+            } else if (type === 'rand') {
+                // Random integer between -9 and 9
+                inp.value = Math.floor(Math.random() * 19) - 9;
+                inp.classList.remove('input-error');
+            } else if (type === 'ident') {
+                inp.value = (r === c) ? '1' : '0';
+                inp.classList.remove('input-error');
+            }
+        });
+        
+        hideNotif();
+    }
+
+    /* ════════════════════════════════════════════════════
+       17. FIREWORKS
+       ════════════════════════════════════════════════════ */
+    function spawnFireworks(count) {
+        for (let i = 0; i < count; i++) setTimeout(() => createFW(), i * 50);
+    }
+    function createFW() {
+        if (activeFireworks >= 25) return;
+        activeFireworks++;
+        const el = document.createElement('div');
+        el.className = 'firework';
+        el.style.top = `${Math.random()*100}vh`;
+        el.style.left = `${Math.random()*100}vw`;
+        if (Math.random()>0.5) el.style.borderRadius = '0';
+        const colors = [OPS[currentOp].color, '#ffeb3b','#ff5722','#4caf50','#00bcd4','#9c27b0','#e040fb','#76ff03'];
+        const c = colors[Math.floor(Math.random()*colors.length)];
+        el.style.backgroundColor = c;
+        el.style.boxShadow = `0 0 8px ${c}`;
+        document.body.appendChild(el);
+        setTimeout(() => { el.remove(); activeFireworks--; }, 2500);
+    }
+
+    /* ════════════════════════════════════════════════════
+       18. NOTIFICATIONS
+       ════════════════════════════════════════════════════ */
+    function showNotif(msg, type='error', dur=5000) {
+        if (notifTimer) clearTimeout(notifTimer);
+        notifEl.textContent = msg;
+        notifEl.className = 'notification ' + type;
+        notifEl.style.display = 'block';
+        if (dur > 0) notifTimer = setTimeout(hideNotif, dur);
+    }
+    function hideNotif() {
+        notifEl.style.display = 'none';
+        if (notifTimer) { clearTimeout(notifTimer); notifTimer = null; }
+    }
+
+    /* ════════════════════════════════════════════════════
+       BOOT
+       ════════════════════════════════════════════════════ */
+    init();
+    </script>
+</body>
+</html>
