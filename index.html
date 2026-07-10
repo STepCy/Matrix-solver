@@ -80,7 +80,7 @@
             border-bottom: 1px solid var(--border-subtle);
         }
         .sidebar-brand .brand-icon { font-size: 1.6rem; }
-        .sidebar-brand .brand-text { font-size: 1.15rem; font-weight: 800; letter-spacing: -0.03em; background: linear-gradient(135deg,#a78bfa,#60a5fa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .sidebar-brand .brand-text { font-size: 1.15rem; font-weight: 800; letter-spacing: -0.03em; background: linear-gradient(135deg,#a78bfa,#60a5fa); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
         .sidebar-ops { padding: 10px 8px; flex: 1; overflow-y: auto; }
         .sidebar-ops::-webkit-scrollbar { width: 4px; }
         .sidebar-ops::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
@@ -410,7 +410,6 @@
             font-size: 0.95rem; white-space: nowrap; color: var(--text-primary);
         }
         .result-matrix td.diag-highlight { color: var(--accent); font-weight: 700; }
-        .result-matrix td.diag-highlight { color: var(--accent); font-weight: 700; }
 
         /* ══════════════ 16. Fireworks ══════════════ */
         .firework {
@@ -696,8 +695,8 @@
                      theory:'<b>Multiplication:</b> (AB)ᵢⱼ = Σₖ Aᵢₖ · Bₖⱼ — ต้องมี cols(A) = rows(B)' },
         addsub:    { name:'Add / Sub',     icon:'±', color:'#00acc1', input:'twoSame',   desc:'A ± B',
                      theory:'<b>Addition/Subtraction:</b> (A±B)ᵢⱼ = Aᵢⱼ ± Bᵢⱼ — ต้องมีขนาดเท่ากัน' },
-        eigen:     { name:'Eigenvalues',   icon:'λ', color:'#f4511e', input:'square',    desc:'det(A−λI)=0',
-                     theory:'<b>Eigenvalues:</b> det(A − λI) = 0 → ค่า λ ที่ทำให้ Av = λv' },
+        eigen:     { name:'Eigenvalues',   icon:'λ', color:'#f4511e', input:'square',    desc:'Symmetric',
+                     theory:'<b>Eigenvalues (Symmetric):</b> det(A − λI) = 0 → ค่า λ ที่ทำให้ Av = λv (ใช้ได้กับ Symmetric Matrix เท่านั้น)' },
         rank:      { name:'Rank',          icon:'#', color:'#546e7a', input:'any',       desc:'rank(A)',
                      theory:'<b>Rank:</b> จำนวนแถวที่ไม่เป็นศูนย์ใน RREF ของ A — Nullity = n − rank' },
         trace:     { name:'Trace',         icon:'Σ', color:'#7cb342', input:'square',    desc:'tr(A)',
@@ -817,7 +816,7 @@
         const o = OPS[op];
         // Update accent
         document.documentElement.style.setProperty('--accent', o.color);
-        document.documentElement.style.setProperty('--accent-dim', o.color + '25');
+        document.documentElement.style.setProperty('--accent-dim', o.color + '25'); // OPS colors must be 6-digit hex for this alpha suffix to work
         // Update title
         opTitleAccent.textContent = o.icon;
         opTitleText.textContent = o.name;
@@ -879,6 +878,7 @@
             case 'any':       return { rA:v('rows'), cA:v('cols'), rB:0, cB:0, rC:0, cC:0 };
             case 'twoDiff':   return { rA:v('rows'), cA:v('cols'), rB:0, cB:0, rC:v('cols'), cC:v('colsB') };
             case 'twoSame':   return { rA:v('rows'), cA:v('cols'), rB:0, cB:0, rC:v('rows'), cC:v('cols') };
+            default:          return { rA:3, cA:3, rB:0, cB:0, rC:0, cC:0 };
         }
     }
 
@@ -1031,6 +1031,7 @@
     function solveCramer(A, b) {
         const n = A.length;
         const detA = math.det(A);
+        // Note: absolute threshold — may false-reject small-valued matrices or miss near-singular large-valued ones
         if (Math.abs(detA) < 1e-10) return { error: 'det(A) ≈ 0 — ระบบสมการไม่มีคำตอบเดียว (Singular Matrix)' };
         const vars = [];
         for (let i = 0; i < n; i++) {
@@ -1050,6 +1051,7 @@
     // ──── Inverse ────
     function solveInverse(A) {
         const det = math.det(A);
+        // Note: absolute threshold — may false-reject small-valued matrices or miss near-singular large-valued ones
         if (Math.abs(det) < 1e-10) return { error: 'det(A) ≈ 0 — เมทริกซ์ไม่มี Inverse (Singular Matrix)' };
         const inv = math.inv(A);
         const invArr = toArr2D(inv);
@@ -1075,21 +1077,27 @@
         return { op:'addsub', sum: toArr2D(math.add(A,B)), diff: toArr2D(math.subtract(A,B)) };
     }
 
-    // ──── Eigenvalues ────
+    // ──── Eigenvalues (Symmetric only) ────
     function solveEigen(A) {
+        // math.js eigs() only supports symmetric real matrices — pre-check
+        const n = A.length;
+        for (let i = 0; i < n; i++)
+            for (let j = i + 1; j < n; j++)
+                if (Math.abs(A[i][j] - A[j][i]) > 1e-10)
+                    return { error: `เมทริกซ์ไม่เป็น Symmetric (a${i+1}${j+1}=${fmt(A[i][j])} ≠ a${j+1}${i+1}=${fmt(A[j][i])}) — ต้องใช้ Symmetric Matrix` };
         try {
             const res = math.eigs(A);
             const values = res.values ? (Array.isArray(res.values) ? res.values : res.values.toArray ? res.values.toArray() : []) : [];
             const evecs = res.eigenvectors || [];
             return { op:'eigen', values, eigenvectors: evecs };
         } catch(e) {
-            return { error: 'ไม่สามารถคำนวณ Eigenvalues ได้: ' + e.message + ' (ลองใช้ Symmetric Matrix)' };
+            return { error: 'ไม่สามารถคำนวณ Eigenvalues ได้: ' + e.message };
         }
     }
 
     // ──── Rank ────
     function solveRank(A) {
-        const rrefResult = computeRREF(A);
+        const rrefResult = solveRREF(A).result;
         const rank = rrefResult.filter(row => row.some(v => Math.abs(v)>1e-10)).length;
         const nullity = A[0].length - rank;
         return { op:'rank', rank, nullity, rows: A.length, cols: A[0].length, rref: rrefResult };
@@ -1132,39 +1140,25 @@
 
             if (maxR !== pivotRow) {
                 [M[pivotRow], M[maxR]] = [M[maxR], M[pivotRow]];
-                steps.push({ desc:`R${pivotRow+1} ↔ R${maxR+1}`, mat: M.map(r=>[...r]) });
+                steps.push({ desc:`R${pivotRow+1} ↔ R${maxR+1}`, mat: M.map(row=>[...row]) });
             }
             const s = M[pivotRow][col];
             if (Math.abs(s-1) > 1e-10) {
                 for (let j=0;j<n;j++) M[pivotRow][j]/=s;
-                steps.push({ desc:`R${pivotRow+1} ← R${pivotRow+1} ÷ ${fmt(s)}`, mat: M.map(r=>[...r]) });
+                steps.push({ desc:`R${pivotRow+1} ← R${pivotRow+1} ÷ ${fmt(s)}`, mat: M.map(row=>[...row]) });
             }
             for (let r=0;r<m;r++) {
                 if (r===pivotRow || Math.abs(M[r][col])<1e-10) continue;
                 const f = M[r][col];
                 for (let j=0;j<n;j++) M[r][j]-=f*M[pivotRow][j];
-                steps.push({ desc:`R${r+1} ← R${r+1} − (${fmt(f)})·R${pivotRow+1}`, mat: M.map(r=>[...r]) });
+                steps.push({ desc:`R${r+1} ← R${r+1} − (${fmt(f)})·R${pivotRow+1}`, mat: M.map(row=>[...row]) });
             }
             pivotRow++;
         }
         return { op:'rref', result: M, steps, original: A };
     }
 
-    function computeRREF(A) {
-        const m = A.length, n = A[0].length;
-        const M = A.map(r => [...r]);
-        let pivotRow = 0;
-        for (let col=0;col<n&&pivotRow<m;col++) {
-            let maxR=pivotRow;
-            for (let r=pivotRow+1;r<m;r++) if(Math.abs(M[r][col])>Math.abs(M[maxR][col])) maxR=r;
-            if (Math.abs(M[maxR][col])<1e-10) continue;
-            if (maxR!==pivotRow) [M[pivotRow],M[maxR]]=[M[maxR],M[pivotRow]];
-            const s=M[pivotRow][col]; for(let j=0;j<n;j++) M[pivotRow][j]/=s;
-            for (let r=0;r<m;r++) { if(r===pivotRow) continue; const f=M[r][col]; for(let j=0;j<n;j++) M[r][j]-=f*M[pivotRow][j]; }
-            pivotRow++;
-        }
-        return M;
-    }
+
 
     // ──── LU Decomposition ────
     function solveLU(A) {
@@ -1391,7 +1385,11 @@
 
     function toArr2D(m) {
         if (Array.isArray(m)) {
-            if (m.length > 0 && Array.isArray(m[0])) return m.map(r => r.map(v => typeof v === 'number' ? v : parseFloat(v)||0));
+            if (m.length > 0 && Array.isArray(m[0])) return m.map(r => r.map(v => {
+                if (typeof v === 'number') return isNaN(v) ? 0 : v;
+                if (v && typeof v.re === 'number') return v.re; // math.js Complex → take real part
+                return parseFloat(v) || 0;
+            }));
             return [m];
         }
         if (m && typeof m.toArray === 'function') return toArr2D(m.toArray());
@@ -1466,7 +1464,7 @@
     }
 
     /* ════════════════════════════════════════════════════
-       16. QUICK FILL UTILITIES
+       17. QUICK FILL UTILITIES
        ════════════════════════════════════════════════════ */
     function quickFill(panel, type) {
         let grid;
@@ -1503,7 +1501,7 @@
     }
 
     /* ════════════════════════════════════════════════════
-       17. FIREWORKS
+       18. FIREWORKS
        ════════════════════════════════════════════════════ */
     function spawnFireworks(count) {
         for (let i = 0; i < count; i++) setTimeout(() => createFW(), i * 50);
@@ -1525,7 +1523,7 @@
     }
 
     /* ════════════════════════════════════════════════════
-       18. NOTIFICATIONS
+       19. NOTIFICATIONS
        ════════════════════════════════════════════════════ */
     function showNotif(msg, type='error', dur=5000) {
         if (notifTimer) clearTimeout(notifTimer);
